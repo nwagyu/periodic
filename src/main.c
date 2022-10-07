@@ -1,13 +1,11 @@
-#include <stdbool.h>
+#include <eadk.h>
 #include <stdio.h>
-#include "extapp_api.h"
 
-#define LCD_WIDTH_PX 320
+const char eadk_app_name[] __attribute__((section(".rodata.eadk_app_name"))) = "Periodic";
+const uint32_t eadk_api_level  __attribute__((section(".rodata.eadk_api_level"))) = 0;
+
 #define LCD_HEIGHT_PX 222
 #define TOOLBAR_HEIGHT_PX 18
-
-#define _WHITE 0xffff
-#define _BLACK 0x0000
 
 // table periodique, d'apres https://bitbucket.org/m4x1m3/nw-atom/src/master/
 // par M4x1m3 https://tiplanet.org/forum/viewtopic.php?f=102&t=23054
@@ -159,22 +157,22 @@ const struct AtomDef atomsdefs[] = {
 };
 
 void draw_rectangle(int16_t x, int16_t y, uint16_t w, uint16_t h, uint16_t color) {
-  extapp_pushRectUniform(x, y + TOOLBAR_HEIGHT_PX, w, h, color);
+  eadk_display_push_rect_uniform((eadk_rect_t){x, y + TOOLBAR_HEIGHT_PX, w, h}, color);
 }
 
 void stroke_rectangle(int16_t x, int16_t y, uint16_t w, uint16_t h, uint16_t color) {
-  extapp_pushRectUniform(x, y + TOOLBAR_HEIGHT_PX, w, 1, color);
-  extapp_pushRectUniform(x, y + h - 1 + TOOLBAR_HEIGHT_PX, w, 1, color);
-  extapp_pushRectUniform(x, y + TOOLBAR_HEIGHT_PX, 1, h, color);
-  extapp_pushRectUniform(x + w - 1, y + TOOLBAR_HEIGHT_PX, 1, h, color);
+  eadk_display_push_rect_uniform((eadk_rect_t){x, y + TOOLBAR_HEIGHT_PX, w, 1}, color);
+  eadk_display_push_rect_uniform((eadk_rect_t){x, y + h -1 + TOOLBAR_HEIGHT_PX, w, 1}, color);
+  eadk_display_push_rect_uniform((eadk_rect_t){x, y + TOOLBAR_HEIGHT_PX, 1, h}, color);
+  eadk_display_push_rect_uniform((eadk_rect_t){x + w - 1, y + TOOLBAR_HEIGHT_PX, 1, h}, color);
 }
 
 void draw_string(int16_t x, int16_t y, const char *text) {
-  extapp_drawTextLarge(text, x, y + TOOLBAR_HEIGHT_PX, _BLACK, _WHITE, false);
+  eadk_display_draw_string(text, (eadk_point_t){x, y + TOOLBAR_HEIGHT_PX}, true, eadk_color_black, eadk_color_white);
 }
 
 void draw_string_small(int16_t x, int16_t y, uint16_t fg, uint16_t bg, const char *text) {
-  extapp_drawTextSmall(text, x, y + TOOLBAR_HEIGHT_PX, fg, bg, false);
+  eadk_display_draw_string(text, (eadk_point_t){x, y + TOOLBAR_HEIGHT_PX}, false, fg, bg);
 }
 
 int rgb24to16(int c) {
@@ -223,21 +221,20 @@ void drawAtom(uint8_t id) {
   if (atomsdefs[id].y >= 7) {
     draw_rectangle(6 + atomsdefs[id].x * 17, 15 + atomsdefs[id].y * 17, 18, 18, fill);
     stroke_rectangle(6 + atomsdefs[id].x * 17, 15 + atomsdefs[id].y * 17, 18, 18, rgb24to16(0x525552));
-    draw_string_small(8 + atomsdefs[id].x * 17, 17 + atomsdefs[id].y * 17, _BLACK, fill, atomsdefs[id].symbol);
+    draw_string_small(8 + atomsdefs[id].x * 17, 17 + atomsdefs[id].y * 17, eadk_color_black, fill, atomsdefs[id].symbol);
   } else {
     draw_rectangle(6 + atomsdefs[id].x * 17, 6 + atomsdefs[id].y * 17, 18, 18, fill);
     stroke_rectangle(6 + atomsdefs[id].x * 17, 6 + atomsdefs[id].y * 17, 18, 18, rgb24to16(0x525552));
-    draw_string_small(8 + atomsdefs[id].x * 17, 8 + atomsdefs[id].y * 17, _BLACK, fill, atomsdefs[id].symbol);
+    draw_string_small(8 + atomsdefs[id].x * 17, 8 + atomsdefs[id].y * 17, eadk_color_black, fill, atomsdefs[id].symbol);
   }
 }
 
 void copy(const char * text) {
-  extapp_clipboardStore(text);
   draw_string(130, 100, "Copie !");
-  extapp_msleep(500);
+  eadk_timing_msleep(500);
 }
 
-void extapp_main(void) {
+void main(int argc, char * argv[]) {
   char buf[128];
   bool partial_draw = false, redraw = true;
   int cursor_pos = 0;
@@ -249,16 +246,16 @@ void extapp_main(void) {
           drawAtom(i);
         }
         partial_draw = false;
-        draw_rectangle(41, 0, 169, 57, _WHITE);
-        draw_rectangle(0, 180, LCD_WIDTH_PX, 14, _WHITE);
+        draw_rectangle(41, 0, 169, 57, eadk_color_white);
+        draw_rectangle(0, 180, EADK_SCREEN_WIDTH, 14, eadk_color_white);
       } else {
-        draw_rectangle(0, 0, LCD_WIDTH_PX, LCD_HEIGHT_PX, _WHITE);
+        draw_rectangle(0, 0, EADK_SCREEN_WIDTH, LCD_HEIGHT_PX, eadk_color_white);
         for(int i = 0; i < ATOM_NUMS; i++) {
           drawAtom(i);
         }
       }
-      draw_string_small(0, 198, _BLACK, _WHITE, "Copier dans le presse papier");
-      draw_string_small(0, 210, _BLACK, _WHITE, "OK: tout, P:protons, N:nucleons, M:mass, E:khi");
+      draw_string_small(0, 198, eadk_color_black, eadk_color_white, "Copier dans le presse papier");
+      draw_string_small(0, 210, eadk_color_black, eadk_color_white, "OK: tout, P:protons, N:nucleons, M:mass, E:khi");
       if (atomsdefs[cursor_pos].y >= 7) {
         stroke_rectangle(6 + atomsdefs[cursor_pos].x * 17, 15 + atomsdefs[cursor_pos].y * 17, 18, 18, 0x000000);
         stroke_rectangle(7 + atomsdefs[cursor_pos].x * 17, 16 + atomsdefs[cursor_pos].y * 17, 16, 16, 0x000000);
@@ -272,27 +269,26 @@ void extapp_main(void) {
       draw_rectangle(48, 158, 9,  2, rgb24to16(0x525552));
 
       draw_string(73, 23, atomsdefs[cursor_pos].symbol);
-      draw_string_small(110, 27, _BLACK, _WHITE, atomsdefs[cursor_pos].name);
+      draw_string_small(110, 27, eadk_color_black, eadk_color_white, atomsdefs[cursor_pos].name);
       sprintf(buf, "%d", atomsdefs[cursor_pos].neutrons + atomsdefs[cursor_pos].num);
-      draw_string_small(50, 18, _BLACK, _WHITE, buf);
+      draw_string_small(50, 18, eadk_color_black, eadk_color_white, buf);
       sprintf(buf, "%d", atomsdefs[cursor_pos].num);
-      draw_string_small(50, 31, _BLACK, _WHITE, buf);
+      draw_string_small(50, 31, eadk_color_black, eadk_color_white, buf);
       sprintf(buf, "M : %f", atomsdefs[cursor_pos].mass);
-      draw_string_small(0, 180, _BLACK, _WHITE, buf);
+      draw_string_small(0, 180, eadk_color_black, eadk_color_white, buf);
       sprintf(buf, "khi : %f", atomsdefs[cursor_pos].electroneg);
-      draw_string_small(160, 180, _BLACK, _WHITE, buf);
+      draw_string_small(160, 180, eadk_color_black, eadk_color_white, buf);
     }
     redraw = false;
-    int key = extapp_getKey(true, NULL);
-    if(key == KEY_CTRL_EXIT || key == KEY_CTRL_MENU) {
-      return;
-    } else if (key == KEY_CTRL_LEFT && cursor_pos > 0) {
+    int32_t timeout = 1000;
+    eadk_event_t event = eadk_event_get(&timeout);
+    if (event == eadk_event_left && cursor_pos > 0) {
       cursor_pos--;
       redraw = partial_draw = true;
-    } else if (key == KEY_CTRL_RIGHT && cursor_pos < ATOM_NUMS - 1) {
+    } else if (event == eadk_event_right && cursor_pos < ATOM_NUMS - 1) {
       cursor_pos++;
       redraw = partial_draw = true;
-    } else if (key == KEY_CTRL_UP) {
+    } else if (event == eadk_event_up) {
       uint8_t curr_x = atomsdefs[cursor_pos].x;
       uint8_t curr_y = atomsdefs[cursor_pos].y;
       bool updated = false;
@@ -305,7 +301,7 @@ void extapp_main(void) {
           }
         }
       }
-    } else if (key == KEY_CTRL_DOWN) {
+    } else if (event == eadk_event_down) {
       uint8_t curr_x = atomsdefs[cursor_pos].x;
       uint8_t curr_y = atomsdefs[cursor_pos].y;
       bool updated = false;
@@ -319,27 +315,25 @@ void extapp_main(void) {
           }
         }
       }
-    } else if (key == KEY_CTRL_OK || key == KEY_CTRL_EXE) {
+    } else if (event == eadk_event_ok || event == eadk_event_exe) {
       sprintf(buf, "%s,%d,%d,%f,%f", atomsdefs[cursor_pos].name, atomsdefs[cursor_pos].num, atomsdefs[cursor_pos].neutrons + atomsdefs[cursor_pos].num, atomsdefs[cursor_pos].mass, atomsdefs[cursor_pos].electroneg);
       copy(buf);
       redraw = partial_draw = true;
-    } else if (key == '(') {
+    } else if (event == eadk_event_left_parenthesis) {
       sprintf(buf, "%d", atomsdefs[cursor_pos].num);
       copy(buf);
       redraw = partial_draw = true;
-    } else if (key == '8') {
+    } else if (event == eadk_event_eight) {
       sprintf(buf, "%d", atomsdefs[cursor_pos].neutrons + atomsdefs[cursor_pos].num);
       copy(buf);
       redraw = partial_draw = true;
-    } else if (key == '7') {
+    } else if (event == eadk_event_seven) {
       sprintf(buf, "%f", atomsdefs[cursor_pos].mass);
       copy(buf);
       redraw = partial_draw = true;
-    } else if (key == ',') {
+    } else if (event == eadk_event_comma) {
       sprintf(buf, "%f", atomsdefs[cursor_pos].electroneg);
       copy(buf);
-      redraw = partial_draw = true;
-    } else if (key == KEY_PRGM_ACON) {
       redraw = partial_draw = true;
     }
   }
