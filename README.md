@@ -23,3 +23,5 @@ brew install numworks/tap/arm-none-eabi-gcc node # Or equivalent on your OS
 npm install -g nwlink
 make run
 ```
+
+This app is a port of [this app](https://github.com/UpsilonNumworks/Upsilon-External/tree/master/apps/Periodic).
